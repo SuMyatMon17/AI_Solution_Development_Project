@@ -161,7 +161,7 @@ if __name__ == "__main__":
     df_prepared = preparation.prepare_data()
 
     df_prepared.to_csv(
-        "data/prepared_gas_monitoring.csv",
+        "data/processed_gas_monitoring.csv",
         index=False
     )
 
