@@ -21,23 +21,12 @@ class DataPreparation:
         df["Time of Day"] = df["Time of Day"].str.lower().str.strip()
         df["HVAC Operation Mode"] = df["HVAC Operation Mode"].str.lower().str.strip()
 
-        df["Ambient Light Level"] = (
-            df["Ambient Light Level"]
-            .str.lower()
-            .str.strip()
-            .str.replace("_", " ", regex=False)
-        )
+        df["Ambient Light Level"] = df["Ambient Light Level"].str.lower().str.strip().str.replace("_", " ", regex=False)
 
-        df["Activity Level"] = (
-            df["Activity Level"]
-            .str.lower()
-            .str.strip()
-            .str.replace("_", " ", regex=False)
-            .replace({
-                "lowactivity": "low activity",
-                "moderateactivity": "moderate activity"
-            })
-        )
+        df["Activity Level"] = df["Activity Level"].str.lower().str.strip().str.replace("_", " ", regex=False).replace({
+            "lowactivity": "low activity",
+            "moderateactivity": "moderate activity"
+        })
 
         return df
 
@@ -47,7 +36,6 @@ class DataPreparation:
         after = len(df)
 
         print("Duplicates removed:", before - after)
-
         return df
 
     def handle_missing_values(self, df):
@@ -74,6 +62,17 @@ class DataPreparation:
                 upper_limit = q3 + 1.5 * iqr
 
                 df[col] = df[col].clip(lower_limit, upper_limit)
+
+        return df
+
+    def engineer_co2_features(self, df):
+        df["CO2_Average"] = (
+            df["CO2_InfraredSensor"] + df["CO2_ElectroChemicalSensor"]
+        ) / 2
+
+        df["CO2_Divergence"] = abs(
+            df["CO2_InfraredSensor"] - df["CO2_ElectroChemicalSensor"]
+        )
 
         return df
 
@@ -145,6 +144,7 @@ class DataPreparation:
         df = self.handle_duplicates(df)
         df = self.handle_missing_values(df)
         df = self.handle_outliers(df)
+        df = self.engineer_co2_features(df)
         df = self.apply_metal_oxide_pca(df)
         df = self.feature_engineering(df)
 
