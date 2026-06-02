@@ -110,8 +110,9 @@ class DataPreparation:
         light_map = {
             "very dim": 0,
             "dim": 1,
-            "bright": 2,
-            "very bright": 3
+            "moderate": 2,
+            "bright": 3,
+            "very bright": 4
         }
 
         activity_map = {
@@ -141,7 +142,6 @@ class DataPreparation:
         print("Raw Dataset Shape:", df.shape)
 
         df = self.clean_categorical_columns(df)
-        df = self.handle_duplicates(df)
         df = self.handle_missing_values(df)
         df = self.handle_outliers(df)
         df = self.engineer_co2_features(df)
@@ -149,6 +149,8 @@ class DataPreparation:
         df = self.feature_engineering(df)
 
         df = df.drop(columns=["Session ID"])
+        df = self.handle_duplicates(df)
+        
 
         print("\nPrepared Dataset Shape:", df.shape)
 
