@@ -1,30 +1,36 @@
+<<<<<<< HEAD
 # config.yaml
+=======
+# Data Paths
+>>>>>>> e39aeb31501c07f9260c71d93d5242b4ed281b13
 data:
-  raw_db_path: "data/gas_monitoring.db"
-  processed_path: "data/processed_gas_monitoring.csv"
+  raw_path: "data/raw_data.csv"
+  processed_path: "data/processed_data.csv"
 
+# Training Parameters
 training:
   test_size: 0.2
   random_state: 42
   cv_folds: 5
 
+# Model Hyperparameters
+# These are the base settings used in training.py 
+# before the grid search optimization starts.
 models:
   decision_tree:
-    class_weight: "balanced"
-
+    max_depth: 5
+    min_samples_split: 2
+  
   random_forest:
     n_estimators: 100
-    class_weight: "balanced"
-
-  logistic_regression:
-    max_iter: 1000
-    class_weight: "balanced"
-
+    max_depth: 10
+  
   xgboost:
-    eval_metric: "mlogloss"
-    objective: "multi:softprob"
-
-output:
-  model_dir: "saved_model"
-  scaler_file: "saved_model/scaler.pkl"
-  artifacts_file: "saved_model/training_artifacts.pkl"
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 5
+  
+  logistic_regression:
+    solver: "liblinear"
+    C: 1.0
+    max_iter: 1000
