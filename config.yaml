@@ -1,3 +1,4 @@
+# config.yaml
 data:
   raw_db_path: "data/gas_monitoring.db"
   processed_path: "data/processed_gas_monitoring.csv"
