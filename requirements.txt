@@ -1,0 +1,12 @@
+# Data Manipulation & DB Ingestion
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Machine Learning & Pipelines
+scikit-learn>=1.2.0
+xgboost>=1.7.0
+imbalanced-learn>=0.10.0
+
+# Configuration & Serialization
+PyYAML>=6.0
+joblib>=1.2.0
