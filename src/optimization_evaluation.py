@@ -74,7 +74,6 @@ class ModelOptimizerSMOTE:
         }
 
         # Optimized hyperparameter grids to speed up search loops
-        # FIXED: Removed 'model__penalty' to resolve the SAGA solver warning flood
         param_grids = {
             "Decision Tree": {
                 "smote__k_neighbors": [5],
@@ -150,6 +149,68 @@ class ModelOptimizerSMOTE:
             print(f"-> Best Parameters Found: {grid_search.best_params_}")
 
         return tuned_results
+
+    def generate_feature_importance(self, best_model_name, best_pipeline, output_dir):
+        """
+        Extracts structural weights from the top tree model, prints real column 
+        names to the terminal, and saves a custom horizontal visualization.
+        """
+        raw_model = best_pipeline.named_steps["model"]
+        
+        if hasattr(raw_model, "feature_importances_"):
+            print(f"\n--- Feature Importance Ranking Leaderboard ({best_model_name}) ---")
+            
+            # Explicitly mapping back your exact database schema layout
+            feature_names = [
+                "Temperature",
+                "Humidity",
+                "CO2_InfraredSensor",
+                "CO2_ElectroChemicalSensor",
+                "CO_GasSensor",
+                "Ambient Light Level",
+                "Activity Level",
+                "CO2_Average",
+                "CO2_Divergence",
+                "MetalOxide_PCA",
+                "Time of Day_evening",
+                "Time of Day_morning",
+                "Time of Day_night",
+                "HVAC Operation Mode_eco_mode",
+                "HVAC Operation Mode_heating_active",
+                "HVAC Operation Mode_maintenance_mode",
+                "HVAC Operation Mode_off",
+                "HVAC Operation Mode_ventilation_only"
+            ]
+                
+            importances = raw_model.feature_importances_
+            
+            # Sort everything cleanly in descending order
+            indices = np.argsort(importances)[::-1]
+            sorted_features = [feature_names[i] for i in indices]
+            sorted_weights = importances[indices]
+
+            # Output clean layout table directly inside your terminal window
+            print(f"{'Rank':<6}{'Sensor Feature Name':<40}{'Importance Score':<15}")
+            print("-" * 61)
+            for rank, (feat, weight) in enumerate(zip(sorted_features, sorted_weights), 1):
+                # FIXED FORMATTING: Combined spacing and precision limit safely
+                print(f"{rank:<6}{feat:<40}{weight:<15.4f}")
+            print("-" * 61)
+
+            # Generate horizontal bar plot with true text axis attributes
+            plt.figure(figsize=(11, 7))
+            sns.barplot(x=sorted_weights, y=sorted_features, color="#4CAF50")
+            
+            plt.title(f'Sensor Feature Importance Structural Weights ({best_model_name})', fontsize=13, pad=15)
+            plt.xlabel('Relative Information Gains / Importance Score', fontsize=11)
+            plt.grid(axis='x', linestyle='--', alpha=0.4)
+            plt.tight_layout()
+            
+            plt.savefig(f"{output_dir}/sensor_feature_importance.png", dpi=300)
+            plt.close()
+            print("[Saved]: sensor_feature_importance.png dropped in ./plots/")
+        else:
+            print(f"\n[Notice]: Top model configuration ({best_model_name}) does not compute feature weights natively. Skipping.")
 
     def generate_visualizations(self, tuned_results, df_summary):
         """Creates and saves three separate individual metric charts and a confusion matrix."""
@@ -251,6 +312,11 @@ class ModelOptimizerSMOTE:
         plt.savefig(f"{output_dir}/confusion_matrix_best.png", dpi=300)
         plt.close()
         print(f"[Saved]: confusion_matrix_best.png")
+
+        # ---------------------------------------------------------
+        # AUTO-TRIGGER FEATURE PLOT AND TERMINAL PRINTOUT
+        # ---------------------------------------------------------
+        self.generate_feature_importance(best_model_name, best_pipeline, output_dir)
 
     def final_evaluation(self, tuned_results):
         """Final Testing and Comparison Report with Recall metrics printed as a table."""
