@@ -30,6 +30,13 @@ class ModelOptimizerSMOTE:
         self.config = config
         self.random_state = config["training"]["random_state"]
         
+        # Pull evaluation configuration variables
+        self.scoring_metric = config["evaluation"].get("scoring_metric", "f1_macro")
+        self.f1_average = config["evaluation"].get("f1_average", "macro")
+        self.labels = config["classification"].get("labels", [0, 1, 2])
+        self.target_names = config["classification"].get("target_names", ["Low", "Moderate", "High"])
+        self.output_plots_dir = config["output"].get("plots_dir", "plots")
+        
         # Load the artifacts from training.py
         artifacts_path = config["output"]["artifacts_file"]
         if not os.path.exists(artifacts_path):
@@ -73,34 +80,8 @@ class ModelOptimizerSMOTE:
             ])
         }
 
-        # Optimized hyperparameter grids to speed up search loops
-        param_grids = {
-            "Decision Tree": {
-                "smote__k_neighbors": [5],
-                "model__max_depth": [4, 6, 8],
-                "model__min_samples_leaf": [4, 10]
-            },
-            "Random Forest": {
-                "smote__k_neighbors": [5],
-                "model__n_estimators": [150],
-                "model__max_depth": [6, 10, 14],
-                "model__min_samples_leaf": [4, 8],
-                "model__max_features": ["sqrt"]
-            },
-            "XGBoost": {
-                "smote__k_neighbors": [5],
-                "model__n_estimators": [150],
-                "model__max_depth": [4, 6],
-                "model__learning_rate": [0.05, 0.15],
-                "model__subsample": [0.8],
-                "model__colsample_bytree": [0.8]
-            },
-            "Logistic Regression": {
-                "smote__k_neighbors": [5],
-                "model__C": [0.1, 1.0, 10.0],
-                "model__solver": ["saga"]
-            }
-        }
+        # Parametric loading extracts search spaces from configuration mapping matrix
+        param_grids = self.config["optimization_grids"]
 
         return pipelines, param_grids
 
@@ -115,7 +96,7 @@ class ModelOptimizerSMOTE:
             random_state=self.random_state
         )
 
-        print("\n--- Starting SMOTE Fine-Tuning & Re-Training ---")
+        print(f"\n--- Starting SMOTE Fine-Tuning & Re-Training [Metric: {self.scoring_metric}] ---")
         
         for name in pipelines.keys():
             print(f"Optimizing {name} with SMOTE...")
@@ -124,7 +105,7 @@ class ModelOptimizerSMOTE:
                 estimator=pipelines[name],
                 param_grid=param_grids[name],
                 cv=cv,
-                scoring='f1_macro',
+                scoring=self.scoring_metric,
                 n_jobs=-1,
                 verbose=1
             )
@@ -136,8 +117,8 @@ class ModelOptimizerSMOTE:
             # Predict on train set to calculate training tracking metrics
             y_train_pred = best_model.predict(self.X_train)
             train_acc = accuracy_score(self.y_train, y_train_pred)
-            train_f1 = f1_score(self.y_train, y_train_pred, average='macro')
-            train_rec = recall_score(self.y_train, y_train_pred, average='macro')
+            train_f1 = f1_score(self.y_train, y_train_pred, average=self.f1_average)
+            train_rec = recall_score(self.y_train, y_train_pred, average=self.f1_average)
 
             tuned_results[name] = {
                 "model": best_model,
@@ -193,7 +174,6 @@ class ModelOptimizerSMOTE:
             print(f"{'Rank':<6}{'Sensor Feature Name':<40}{'Importance Score':<15}")
             print("-" * 61)
             for rank, (feat, weight) in enumerate(zip(sorted_features, sorted_weights), 1):
-                # FIXED FORMATTING: Combined spacing and precision limit safely
                 print(f"{rank:<6}{feat:<40}{weight:<15.4f}")
             print("-" * 61)
 
@@ -208,13 +188,13 @@ class ModelOptimizerSMOTE:
             
             plt.savefig(f"{output_dir}/sensor_feature_importance.png", dpi=300)
             plt.close()
-            print("[Saved]: sensor_feature_importance.png dropped in ./plots/")
+            print(f"[Saved]: sensor_feature_importance.png dropped in ./{output_dir}/")
         else:
             print(f"\n[Notice]: Top model configuration ({best_model_name}) does not compute feature weights natively. Skipping.")
 
     def generate_visualizations(self, tuned_results, df_summary):
         """Creates and saves three separate individual metric charts and a confusion matrix."""
-        output_dir = "plots"
+        output_dir = self.output_plots_dir
         os.makedirs(output_dir, exist_ok=True)
         print(f"\n--- Generating and Saving Separated Plots to ./{output_dir}/ ---")
 
@@ -226,10 +206,10 @@ class ModelOptimizerSMOTE:
         # CHART 1: MACRO F1 GAP
         # ---------------------------------------------------------
         fig, ax = plt.subplots(figsize=(10, 6))
-        rects1 = ax.bar(x - width/2, df_summary["Train F1"].tolist(), width, label='Train Macro F1', color='#4A90E2')
-        rects2 = ax.bar(x + width/2, df_summary["Test F1"].tolist(), width, label='Test Macro F1', color='#E24A4A')
+        rects1 = ax.bar(x - width/2, df_summary["Train F1"].tolist(), width, label='Train F1', color='#4A90E2')
+        rects2 = ax.bar(x + width/2, df_summary["Test F1"].tolist(), width, label='Test F1', color='#E24A4A')
         
-        ax.set_ylabel('Macro F1 Score', fontsize=12)
+        ax.set_ylabel('F1 Score', fontsize=12)
         ax.set_title('Model Optimization Comparison: Generalization Variance Gap (F1)', fontsize=14, pad=15)
         ax.set_xticks(x)
         ax.set_xticklabels(models, fontsize=11)
@@ -246,13 +226,13 @@ class ModelOptimizerSMOTE:
         print("[Saved]: macro_f1_gap.png")
 
         # ---------------------------------------------------------
-        # CHART 2: MACRO RECALL GAP
+        # CHART 2: RECALL GAP
         # ---------------------------------------------------------
         fig, ax = plt.subplots(figsize=(10, 6))
-        rects1 = ax.bar(x - width/2, df_summary["Train Recall"].tolist(), width, label='Train Macro Recall', color='#2CA02C')
-        rects2 = ax.bar(x + width/2, df_summary["Test Recall"].tolist(), width, label='Test Macro Recall', color='#9467BD')
+        rects1 = ax.bar(x - width/2, df_summary["Train Recall"].tolist(), width, label='Train Recall', color='#2CA02C')
+        rects2 = ax.bar(x + width/2, df_summary["Test Recall"].tolist(), width, label='Test Recall', color='#9467BD')
         
-        ax.set_ylabel('Macro Recall Score', fontsize=12)
+        ax.set_ylabel('Recall Score', fontsize=12)
         ax.set_title('Model Optimization Comparison: Sensitivity Performance (Recall)', fontsize=14, pad=15)
         ax.set_xticks(x)
         ax.set_xticklabels(models, fontsize=11)
@@ -301,8 +281,8 @@ class ModelOptimizerSMOTE:
         cm = confusion_matrix(self.y_test, y_test_pred)
         plt.figure(figsize=(6.5, 5))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True,
-                    xticklabels=["Low", "Moderate", "High"],
-                    yticklabels=["Low", "Moderate", "High"],
+                    xticklabels=self.target_names,
+                    yticklabels=self.target_names,
                     annot_kws={"size": 12})
         
         plt.title(f'Confusion Matrix: {best_model_name} (SMOTE Optimized)', fontsize=13, pad=12)
@@ -313,9 +293,7 @@ class ModelOptimizerSMOTE:
         plt.close()
         print(f"[Saved]: confusion_matrix_best.png")
 
-        # ---------------------------------------------------------
         # AUTO-TRIGGER FEATURE PLOT AND TERMINAL PRINTOUT
-        # ---------------------------------------------------------
         self.generate_feature_importance(best_model_name, best_pipeline, output_dir)
 
     def final_evaluation(self, tuned_results):
@@ -331,17 +309,18 @@ class ModelOptimizerSMOTE:
             
             y_test_pred = model.predict(self.X_test)
             test_acc = accuracy_score(self.y_test, y_test_pred)
-            test_f1 = f1_score(self.y_test, y_test_pred, average='macro')
-            test_rec = recall_score(self.y_test, y_test_pred, average='macro')
+            test_f1 = f1_score(self.y_test, y_test_pred, average=self.f1_average)
+            test_rec = recall_score(self.y_test, y_test_pred, average=self.f1_average)
             
             print(f"\n>>> {name} Final Performance:")
-            print(f"TRAIN: Acc={data['train_acc']:.4f}, Macro F1={data['train_f1']:.4f}, Macro Recall={data['train_rec']:.4f}")
-            print(f"TEST:  Acc={test_acc:.4f}, Macro F1={test_f1:.4f}, Macro Recall={test_rec:.4f}")
+            print(f"TRAIN: Acc={data['train_acc']:.4f}, F1={data['train_f1']:.4f}, Recall={data['train_rec']:.4f}")
+            print(f"TEST:  Acc={test_acc:.4f}, F1={test_f1:.4f}, Recall={test_rec:.4f}")
             
             print(classification_report(
                 self.y_test, 
                 y_test_pred, 
-                target_names=["Low", "Moderate", "High"]
+                labels=self.labels,
+                target_names=self.target_names
             ))
             
             summary_list.append({
@@ -357,9 +336,17 @@ class ModelOptimizerSMOTE:
         # Generate structural summary framework
         df_summary = pd.DataFrame(summary_list)
         column_order = ["Model", "Train Acc", "Test Acc", "Train F1", "Test F1", "Train Recall", "Test Recall"]
-        df_summary = df_summary[column_order].sort_values(by="Test F1", ascending=False)
         
-        print("\n--- Summary Table (Ordered by Test Macro F1) ---")
+        # CHANGED PART: Safely sorts the table based on configuration routing rules
+        sort_column = "Test F1"
+        if "recall" in self.scoring_metric:
+            sort_column = "Test Recall"
+        elif "accuracy" in self.scoring_metric:
+            sort_column = "Test Acc"
+            
+        df_summary = df_summary[column_order].sort_values(by=sort_column, ascending=False)
+        
+        print(f"\n--- Summary Table (Ordered by {sort_column}) ---")
         print(df_summary.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
         # Save all individual charts to drive automatically
