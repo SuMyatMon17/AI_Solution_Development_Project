@@ -147,9 +147,9 @@ class DataPreparation:
         df = self.engineer_co2_features(df)
         df = self.apply_metal_oxide_pca(df)
         df = self.feature_engineering(df)
-
-        df = df.drop(columns=["Session ID"])
         df = self.handle_duplicates(df)
+        df = df.drop(columns=["Session ID"])
+        
         
 
         print("\nPrepared Dataset Shape:", df.shape)
