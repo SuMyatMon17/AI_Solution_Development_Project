@@ -72,26 +72,26 @@ class ModelTraining:
         return {
             "Decision Tree": DecisionTreeClassifier(
                 random_state=self.random_state,
-                class_weight="balanced"
+                class_weight=self.config["models"]["decision_tree"]["class_weight"]
             ),
 
             "Random Forest": RandomForestClassifier(
                 random_state=self.random_state,
-                class_weight="balanced",
-                n_estimators=100
+                class_weight=self.config["models"]["random_forest"]["class_weight"],
+                n_estimators=self.config["models"]["random_forest"]["n_estimators"]
             ),
 
             "XGBoost": XGBClassifier(
                 random_state=self.random_state,
-                eval_metric="mlogloss",
-                objective="multi:softprob",
+                eval_metric=self.config["models"]["xgboost"]["eval_metric"],
+                objective=self.config["models"]["xgboost"]["objective"],
                 num_class=num_classes
             ),
 
             "Logistic Regression": LogisticRegression(
                 random_state=self.random_state,
-                class_weight="balanced",
-                max_iter=1000
+                class_weight=self.config["models"]["logistic_regression"]["class_weight"],
+                max_iter=self.config["models"]["logistic_regression"]["max_iter"]
             )
         }
 
@@ -115,7 +115,7 @@ class ModelTraining:
             score = f1_score(
                 y_train.iloc[val_idx],
                 y_pred,
-                average="macro"
+                average=self.config["evaluation"]["f1_average"]
             )
 
             scores.append(score)
@@ -171,7 +171,7 @@ class ModelTraining:
                     X_train_scaled,
                     y_train,
                     cv=cv,
-                    scoring="f1_macro"
+                    scoring=self.config["evaluation"]["scoring_metric"]
                 )
 
                 model.fit(
@@ -189,7 +189,7 @@ class ModelTraining:
             macro_f1 = f1_score(
                 y_test,
                 y_pred,
-                average="macro"
+                average=self.config["evaluation"]["f1_average"]
             )
 
             print(f"\nModel: {name}")
@@ -201,13 +201,9 @@ class ModelTraining:
                 classification_report(
                     y_test,
                     y_pred,
-                    labels=[0, 1, 2],
-                    target_names=[
-                        "Low",
-                        "Moderate",
-                        "High"
-                    ]
-                )
+                    labels=self.config["classification"]["labels"],
+                    target_names=self.config["classification"]["target_names"]
+               )
             )
 
             artifacts[name] = {
@@ -216,11 +212,13 @@ class ModelTraining:
                 "macro_f1": macro_f1
             }
 
-        os.makedirs("saved_model", exist_ok=True)
+        model_dir = self.config["output"]["model_dir"]
+
+        os.makedirs(model_dir, exist_ok=True)
 
         joblib.dump(
             self.scaler,
-            "saved_model/scaler.pkl"
+            f"{model_dir}/scaler.pkl"
         )
 
         joblib.dump(
@@ -232,10 +230,9 @@ class ModelTraining:
                 "models": artifacts,
                 "sample_weights": sample_weights
             },
-            "saved_model/training_artifacts.pkl"
-        )
-
-        print("\nTraining completed. Artifacts saved to saved_model/training_artifacts.pkl")
+            f"{model_dir}/training_artifacts.pkl"
+    )
+        print(f"\nTraining completed. Artifacts saved to {model_dir}/training_artifacts.pkl")
 
 
 if __name__ == "__main__":

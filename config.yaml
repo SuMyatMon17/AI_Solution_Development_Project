@@ -22,7 +22,18 @@ models:
   xgboost:
     eval_metric: "mlogloss"
     objective: "multi:softprob"
+    
+evaluation:
+  f1_average: "macro"
+  scoring_metric: "f1_macro"
 
+classification:
+  labels: [0, 1, 2]
+  target_names:
+    - "Low"
+    - "Moderate"
+    - "High"
+    
 output:
   model_dir: "saved_model"
   scaler_file: "saved_model/scaler.pkl"
