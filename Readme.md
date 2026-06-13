@@ -46,6 +46,26 @@ AI_Solution_Development_Project/
 │   ├── recall_gap.png
 │   └── sensor_feature_importance.png
 |
+├── preprocessing_plots\outliers
+│   ├── CO_GasSensor_boxplot_comparison.png
+│   ├── CO_GasSensor_histogram_comparison.png
+│   ├── CO2_ElectroChemicalSensor_boxplot_comparison.png
+│   ├── CO2_ElectroChemicalSensor_histogram_comparison.png
+│   ├── CO2_InfraredSensor_boxplot_comparison.png
+│   ├── CO2_InfraredSensor_histogram_comparison.png
+│   ├── Humidity_boxplot_comparison.png
+│   ├── Humidity_histogram_comparison.png
+│   ├── MetalOxideSensor_Unit1_boxplot_comparison.png
+│   ├── MetalOxideSensor_Unit1_histogram_comparison.png
+│   ├── MetalOxideSensor_Unit2_boxplot_comparison.png
+│   ├── MetalOxideSensor_Unit2_histogram_comparison.png
+│   ├── MetalOxideSensor_Unit3_boxplot_comparison.png
+│   ├── MetalOxideSensor_Unit3_histogram_comparison.png
+│   ├── MetalOxideSensor_Unit4_boxplot_comparison.png
+│   ├── MetalOxideSensor_Unit4_histogram_comparison.png
+│   ├── Temperature_boxplot_comparison.png
+│   └── Temperature_histogram_comparison.png
+|
 ├── saved_model/
 │   ├── scaler.pkl
 │   └── training_artifacts.pkl
@@ -83,7 +103,7 @@ To maximize reproducibility and eliminate code repetition, this entire pipeline 
 
 By altering parameters inside `config.yaml`, changes flow seamlessly downstream through all modules without modifying code files:
 
-* **Global Parameters:** Easily modify test splits (`test_size`), random seed values (`random_state`), or cross-validation strategies (`cv_folds`).
+* **Global Parameters:** Esensor_feature_importanceasily modify test splits (`test_size`), random seed values (`random_state`), or cross-validation strategies (`cv_folds`).
 * **Dynamic Pipeline Tuning Metric:** Adjusting the `scoring_metric` property (e.g., changing from `f1_macro` to `recall_macro` or `accuracy`) alters the evaluation scoring of baseline modules, re-targets the optimization search criteria for `GridSearchCV`, and automatically re-orders the final model selection summary table.
 * **Hyperparameter Spaces:** Adjust search spaces for all four algorithms inside a unified `optimization_grids` block instead of tracking down variable declarations across multiple execution files.
 
@@ -100,6 +120,7 @@ This script handles data extraction, rigorous data cleaning, and feature generat
 * **Database Ingestion:** Connects dynamically to the SQLite database path defined in `config.yaml` to extract the raw historical gas monitoring records.
 * **Missing Value & Integrity Check:** Inspects the dataset for null values or structural gaps to prevent script compilation errors downstream.
 * **Outlier Treatment (IQR Clipping):** Implements an automated Interquartile Range (IQR) thresholding algorithm. Sensor values falling outside `[Q1 - 1.5*IQR]` and `[Q3 + 1.5*IQR]` are safely clipped to the upper or lower boundary limits, preserving rows while neutralizing extreme electrical or environmental telemetry spikes.
+* **Outlier Impact Analysis:** Generates boxplots and histograms comparing feature distributions before and after clipping to assess whether outlier treatment significantly altered the data. These visualizations are stored in `preprocessing_plots/outliers/`.
 * **Feature Engineering:**
 * Computes `CO2_Average` to combine information from the Infrared and Electrochemical sensors into a single robust measure.
 * Calculates `CO2_Divergence` (`|Infrared - Electrochemical|`) to quantify variance or anomalies between the two sensing units.
