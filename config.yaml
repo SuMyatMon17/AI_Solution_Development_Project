@@ -22,8 +22,49 @@ models:
   xgboost:
     eval_metric: "mlogloss"
     objective: "multi:softprob"
+    
+evaluation:
+  f1_average: "macro"
+  scoring_metric: "f1_macro"
 
+classification:
+  labels: [0, 1, 2]
+  target_names:
+    - "Low"
+    - "Moderate"
+    - "High"
+    
 output:
   model_dir: "saved_model"
   scaler_file: "saved_model/scaler.pkl"
   artifacts_file: "saved_model/training_artifacts.pkl"
+  plots_dir: "plots"
+
+# =====================================================================
+# Central Parameter Search Space Maps (Removes Hard-coding)
+# =====================================================================
+optimization_grids:
+  "Decision Tree":
+    smote__k_neighbors: [5]
+    model__max_depth: [4, 6, 8]
+    model__min_samples_leaf: [4, 10]
+
+  "Random Forest":
+    smote__k_neighbors: [5]
+    model__n_estimators: [150]
+    model__max_depth: [6, 10, 14]
+    model__min_samples_leaf: [4, 8]
+    model__max_features: ["sqrt"]
+
+  "XGBoost":
+    smote__k_neighbors: [5]
+    model__n_estimators: [150]
+    model__max_depth: [4, 6]
+    model__learning_rate: [0.05, 0.15]
+    model__subsample: [0.8]
+    model__colsample_bytree: [0.8]
+
+  "Logistic Regression":
+    smote__k_neighbors: [5]
+    model__C: [0.1, 1.0, 10.0]
+    model__solver: ["saga"]
