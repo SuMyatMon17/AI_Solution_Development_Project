@@ -20,11 +20,13 @@ from xgboost import XGBClassifier
 from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 
+# Load configuration settings (training, evaluation, output paths, etc.) from YAML file
 def load_config(config_path="config.yaml"):
     """Load project configuration."""
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
+# Main class to handle model optimization with SMOTE, hyperparameter tuning, evaluation, and visualization
 class ModelOptimizerSMOTE:
     def __init__(self, config):
         self.config = config
@@ -50,7 +52,8 @@ class ModelOptimizerSMOTE:
         self.X_test = artifacts["X_test"]
         self.y_test = artifacts["y_test"]
         self.base_models = artifacts["models"]
-
+        
+    # Build SMOTE pipelines for each model and load hyperparameter grids from config python
     def get_pipelines_and_params(self):
         """
         Wraps models in a SMOTE pipeline and provides high-yield 
@@ -85,6 +88,7 @@ class ModelOptimizerSMOTE:
 
         return pipelines, param_grids
 
+    # Perform GridSearchCV with StratifiedKFold using chosen scoring metric (flexible via config)
     def run_optimization(self):
         """Search for best parameters using SMOTE cross-validation."""
         pipelines, param_grids = self.get_pipelines_and_params()
@@ -130,7 +134,8 @@ class ModelOptimizerSMOTE:
             print(f"-> Best Parameters Found: {grid_search.best_params_}")
 
         return tuned_results
-
+    
+    # Extract and visualize feature importance for tree-based models (Decision Tree, RF, XGBoost)
     def generate_feature_importance(self, best_model_name, best_pipeline, output_dir):
         """
         Extracts structural weights from the top tree model, prints real column 
@@ -141,7 +146,10 @@ class ModelOptimizerSMOTE:
         if hasattr(raw_model, "feature_importances_"):
             print(f"\n--- Feature Importance Ranking Leaderboard ({best_model_name}) ---")
             
-            # Explicitly mapping back your exact database schema layout
+            # Explicitly mapping back the exact database schema layout
+            # This ensures that feature importance scores are correctly aligned
+            # with the real sensor and categorical feature names from the dataset,
+            # so the output table and plots are interpretable and meaningful.
             feature_names = [
                 "Temperature",
                 "Humidity",
@@ -192,6 +200,7 @@ class ModelOptimizerSMOTE:
         else:
             print(f"\n[Notice]: Top model configuration ({best_model_name}) does not compute feature weights natively. Skipping.")
 
+    # Create comparison charts (F1, Recall, Accuracy) and confusion matrix for best model
     def generate_visualizations(self, tuned_results, df_summary):
         """Creates and saves three separate individual metric charts and a confusion matrix."""
         output_dir = self.output_plots_dir
@@ -296,6 +305,7 @@ class ModelOptimizerSMOTE:
         # AUTO-TRIGGER FEATURE PLOT AND TERMINAL PRINTOUT
         self.generate_feature_importance(best_model_name, best_pipeline, output_dir)
 
+    # Print train vs test metrics, classification report, and summary table ordered by chosen metric
     def final_evaluation(self, tuned_results):
         """Final Testing and Comparison Report with Recall metrics printed as a table."""
         print("\n" + "="*85)
@@ -352,7 +362,7 @@ class ModelOptimizerSMOTE:
         # Save all individual charts to drive automatically
         self.generate_visualizations(tuned_results, df_summary)
 
-
+# Entry point: load config, run optimization, and perform final evaluation with plots
 if __name__ == "__main__":
     cfg = load_config("config.yaml")
     optimizer = ModelOptimizerSMOTE(cfg)
